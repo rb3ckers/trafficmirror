@@ -4,19 +4,22 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"time"
+
+	"github.com/rb3ckers/trafficmirror/datatypes"
 )
 
 var netClient = &http.Client{
 	Timeout: time.Second * 10,
 }
 
-var mirrors = make(map[string]bool)
+var targets = datatypes.NewMirrorTargets()
 
 func main() {
 	listenPort := flag.String("port", "7071", "Port to listen on")
@@ -32,7 +35,7 @@ func main() {
 		fmt.Printf("* sends requests to a main endpoint from which the response is returned")
 		fmt.Printf("* can mirror the requests to any additional number of endpoints")
 		fmt.Printf("")
-		fmt.Printf("Additional endpoints are configured via POST/DELETE on the `/mirrors?url=<endpoint>`.")
+		fmt.Printf("Additional targets are configured via POST/DELETE on the `/mirrorTargets?url=<endpoint>`.")
 
 		flag.PrintDefaults()
 		return
@@ -71,9 +74,9 @@ func bufferRequest(req *http.Request) []byte {
 }
 
 func sendToMirrors(req *http.Request, body []byte) {
-	for mirrorURL := range mirrors {
-		go mirrorTo(mirrorURL, req, body)
-	}
+	targets.ForEach(func(target string) {
+		go mirrorTo(target, req, body)
+	})
 }
 
 func mirrorTo(targetURL string, req *http.Request, body []byte) {
@@ -88,19 +91,21 @@ func mirrorTo(targetURL string, req *http.Request, body []byte) {
 		return
 	}
 	defer response.Body.Close()
+	// Drain the body, but discard it, to make sure connection can be reused
+	io.Copy(ioutil.Discard, response.Body)
 }
 
 func mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodGet {
-		for url := range mirrors {
-			fmt.Fprintln(res, url)
-		}
+		targets.ForEach(func(target string) {
+			fmt.Fprintln(res, target)
+		})
 		return
 	}
 
 	req.ParseForm()
 
-	mirrorURLs, inForm := req.Form["url"]
+	targetURLs, inForm := req.Form["url"]
 
 	if !inForm {
 		http.Error(res, "Missing required field: 'url'.", http.StatusBadRequest)
@@ -108,14 +113,10 @@ func mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == http.MethodPost {
-		log.Printf("Adding '%s' to mirror list.", mirrorURLs)
-		for _, url := range mirrorURLs {
-			mirrors[url] = true
-		}
+		log.Printf("Adding '%s' to targets list.", targetURLs)
+		targets.Add(targetURLs)
 	} else if req.Method == http.MethodDelete {
-		log.Printf("Removing '%s' from mirror list.", mirrorURLs)
-		for _, url := range mirrorURLs {
-			delete(mirrors, url)
-		}
+		log.Printf("Removing '%s' from targets list.", targetURLs)
+		targets.Delete(targetURLs)
 	}
 }
