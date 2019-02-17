@@ -24,8 +24,8 @@ var netClient = &http.Client{
 var targets = datatypes.NewMirrorTargets()
 
 func main() {
-	listenAddress := flag.String("listen", ":7071", "Address to listen on and mirror traffic from")
-	proxyTarget := flag.String("main", "http://localhost:7072", "Main proxy target, its responses will be returned")
+	listenAddress := flag.String("listen", ":8080", "Address to listen on and mirror traffic from")
+	proxyTarget := flag.String("main", "http://localhost:8888", "Main proxy target, its responses will be returned to the client")
 	targetsEndpoint := flag.String("targets", "targets", "Path on which additional targets to mirror to can be added/deleted/listed")
 	targetsAddress := flag.String("targetsAddress", "", "Address on which the targets endpoint is made available. Leave empty to expose it on the address that is being mirrored")
 	passwordFile := flag.String("password", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by '\n'.")
