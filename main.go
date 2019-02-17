@@ -28,7 +28,7 @@ func main() {
 	proxyTarget := flag.String("main", "http://localhost:8888", "Main proxy target, its responses will be returned to the client")
 	targetsEndpoint := flag.String("targets", "targets", "Path on which additional targets to mirror to can be added/deleted/listed via PUT, DELETE and GET")
 	targetsAddress := flag.String("targetsAddress", "", "Address on which the targets endpoint is made available. Leave empty to expose it on the address that is being mirrored")
-	passwordFile := flag.String("password", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by '\n'.")
+	passwordFile := flag.String("password", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by ':'.")
 
 	help := flag.Bool("help", false, "Print help")
 
@@ -63,7 +63,6 @@ func main() {
 		targetsMux = mirrorMux
 	}
 
-	http.DefaultServeMux
 	proxyTo := httputil.NewSingleHostReverseProxy(url)
 
 	if *passwordFile != "" {
@@ -188,7 +187,7 @@ func parseUsernamePassword(passwordFile string) (string, string) {
 	if err != nil {
 		panic("Failed to load password file.")
 	}
-	split := strings.SplitN(string(data), "\n", 2)
+	split := strings.SplitN(string(data), ":", 2)
 	if len(split) != 2 {
 		panic("Failed to parse username/password. Expected 2 find username/password separated by a new line.")
 	}

@@ -45,3 +45,13 @@ Returns
 http://firstmirror:8080
 http://secondmirror:8081
 ```
+
+When password protection was enabled adapt all `curl` commands accordingly. For example if your password file contained
+
+```
+user:password
+```
+
+The list command should become:
+
+`curl -u user:password 127.0.0.1:1234/targets`
