@@ -30,7 +30,7 @@ http://firstmirror:8080
 
 To remove the target again:
 
-`curl -X DELETE 127.0.0.1:1234/targets?url=http://firstmirror:8080"`
+`curl -X DELETE 127.0.0.1:1234/targets?url=http://firstmirror:8080`
 
 Because a request parameter can be added multiple times to a url we can also add and remove multiple targets in one go:
 
