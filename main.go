@@ -18,15 +18,16 @@ import (
 )
 
 var netClient = &http.Client{
-	Timeout: time.Second * 10,
+	Timeout: time.Second * 20,
 }
 
 var targets = datatypes.NewMirrorTargets()
 
 func main() {
-	listenPort := flag.String("port", "7071", "Port to listen on")
+	listenAddress := flag.String("listen", ":7071", "Address to listen on and mirror traffic from")
 	proxyTarget := flag.String("main", "http://localhost:7072", "Main proxy target, its responses will be returned")
-	mirrorsEndpoint := flag.String("targets", "targets", "Path on which additional targets to mirror to can be added/deleted/listed")
+	targetsEndpoint := flag.String("targets", "targets", "Path on which additional targets to mirror to can be added/deleted/listed")
+	targetsAddress := flag.String("targetsAddress", "", "Address on which the targets endpoint is made available. Leave empty to expose it on the address that is being mirrored")
 	passwordFile := flag.String("password", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by '\n'.")
 
 	help := flag.Bool("help", false, "Print help")
@@ -44,26 +45,52 @@ func main() {
 		return
 	}
 
+	fmt.Printf("Mirroring traffic from %s\n", *listenAddress)
+	if *targetsAddress != "" {
+		fmt.Printf("Add/remove/list mirror targets at http://%s/%s\n", *targetsAddress, *targetsEndpoint)
+	} else {
+		fmt.Printf("Add/remove/list mirror targets at http://%s/%s\n", *listenAddress, *targetsEndpoint)
+	}
+
 	url, _ := url.Parse(*proxyTarget)
 
+	mirrorMux := http.NewServeMux()
+	var targetsMux *http.ServeMux
+
+	if *targetsAddress != "" {
+		targetsMux = http.NewServeMux()
+	} else {
+		targetsMux = mirrorMux
+	}
+
+	http.DefaultServeMux
 	proxyTo := httputil.NewSingleHostReverseProxy(url)
 
 	if *passwordFile != "" {
 		username, password := parseUsernamePassword(*passwordFile)
-		http.HandleFunc("/"+*mirrorsEndpoint, BasicAuth(mirrorsHandler, username, password, "Please provide username and password for changing mirror targets"))
+		targetsMux.HandleFunc("/"+*targetsEndpoint, BasicAuth(mirrorsHandler, username, password, "Please provide username and password for changing mirror targets"))
 	} else {
-		http.HandleFunc("/"+*mirrorsEndpoint, mirrorsHandler)
+		targetsMux.HandleFunc("/"+*targetsEndpoint, mirrorsHandler)
 	}
 
-	http.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
+	mirrorMux.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
 		body := bufferRequest(req)
 
 		proxyTo.ServeHTTP(res, req)
 		go sendToMirrors(req, body)
 	})
 
-	// start server
-	if err := http.ListenAndServe(":"+*listenPort, nil); err != nil {
+	// start configuration server if needed
+	if *targetsAddress != "" {
+		go func() {
+			if err := http.ListenAndServe(*targetsAddress, targetsMux); err != nil {
+				panic(err)
+			}
+		}()
+	}
+
+	// start mirror server
+	if err := http.ListenAndServe(*listenAddress, mirrorMux); err != nil {
 		panic(err)
 	}
 }
