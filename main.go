@@ -26,7 +26,7 @@ var targets = datatypes.NewMirrorTargets()
 func main() {
 	listenAddress := flag.String("listen", ":8080", "Address to listen on and mirror traffic from")
 	proxyTarget := flag.String("main", "http://localhost:8888", "Main proxy target, its responses will be returned to the client")
-	targetsEndpoint := flag.String("targets", "targets", "Path on which additional targets to mirror to can be added/deleted/listed")
+	targetsEndpoint := flag.String("targets", "targets", "Path on which additional targets to mirror to can be added/deleted/listed via PUT, DELETE and GET")
 	targetsAddress := flag.String("targetsAddress", "", "Address on which the targets endpoint is made available. Leave empty to expose it on the address that is being mirrored")
 	passwordFile := flag.String("password", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by '\n'.")
 
@@ -39,7 +39,7 @@ func main() {
 		fmt.Printf("* sends requests to a main endpoint from which the response is returned")
 		fmt.Printf("* can mirror the requests to any additional number of endpoints")
 		fmt.Printf("")
-		fmt.Printf("Additional targets are configured via POST/DELETE on the `/targets?url=<endpoint>`.")
+		fmt.Printf("Additional targets are configured via PUT/DELETE on the `/targets?url=<endpoint>`.")
 
 		flag.PrintDefaults()
 		return
@@ -147,7 +147,7 @@ func mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.Method == http.MethodPost {
+	if req.Method == http.MethodPut {
 		log.Printf("Adding '%s' to targets list.", targetURLs)
 		targets.Add(targetURLs)
 	} else if req.Method == http.MethodDelete {
