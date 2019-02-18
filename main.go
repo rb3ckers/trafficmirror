@@ -45,7 +45,7 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Mirroring traffic from %s\n", *listenAddress)
+	fmt.Printf("Mirroring traffic from %s to %s\n", *listenAddress, *proxyTarget)
 	if *targetsAddress != "" {
 		fmt.Printf("Add/remove/list mirror targets at http://%s/%s\n", *targetsAddress, *targetsEndpoint)
 	} else {
