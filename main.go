@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sony/gobreaker"
+
 	"github.com/rb3ckers/trafficmirror/datatypes"
 )
 
@@ -21,14 +23,16 @@ var netClient = &http.Client{
 	Timeout: time.Second * 20,
 }
 
-var targets = datatypes.NewMirrorTargets()
+var targets *datatypes.MirrorTargets
 
 func main() {
 	listenAddress := flag.String("listen", ":8080", "Address to listen on and mirror traffic from")
 	proxyTarget := flag.String("main", "http://localhost:8888", "Main proxy target, its responses will be returned to the client")
 	targetsEndpoint := flag.String("targets", "targets", "Path on which additional targets to mirror to can be added/deleted/listed via PUT, DELETE and GET")
-	targetsAddress := flag.String("targetsAddress", "", "Address on which the targets endpoint is made available. Leave empty to expose it on the address that is being mirrored")
+	targetsAddress := flag.String("targets-address", "", "Address on which the targets endpoint is made available. Leave empty to expose it on the address that is being mirrored")
 	passwordFile := flag.String("password", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by ':'.")
+	persistentFailureTimeout := flag.Duration("fail-after", time.Minute*30, "Remove a target when it has been failing for this duration.")
+	retryAfter := flag.Duration("retry-after", time.Minute*1, "After 5 successive failures a target is temporarily disabled, it will be retried after this timeout.")
 
 	help := flag.Bool("help", false, "Print help")
 
@@ -46,11 +50,23 @@ func main() {
 	}
 
 	fmt.Printf("Mirroring traffic from %s to %s\n", *listenAddress, *proxyTarget)
+	var targetsText string
 	if *targetsAddress != "" {
-		fmt.Printf("Add/remove/list mirror targets at http://%s/%s\n", *targetsAddress, *targetsEndpoint)
+		targetsText = fmt.Sprintf("http://%s/%s", *targetsAddress, *targetsEndpoint)
 	} else {
-		fmt.Printf("Add/remove/list mirror targets at http://%s/%s\n", *listenAddress, *targetsEndpoint)
+		targetsText = fmt.Sprintf("http://%s/%s", *listenAddress, *targetsEndpoint)
 	}
+
+	fmt.Printf("Add/remove/list mirror targets via PUT/DELETE/GET at %s:\n", targetsText)
+	fmt.Printf("List  : curl %s\n", targetsText)
+	fmt.Printf("Add   : curl -X PUT %s?url=http://localhost:5678\n", targetsText)
+	fmt.Printf("Remove: curl -X DELETE %s?url=http://localhost:5678\n", targetsText)
+	fmt.Println()
+
+	targets = datatypes.NewMirrorTargets(datatypes.MirrorSettings{
+		PersistentFailureTimeout: *persistentFailureTimeout,
+		RetryAfter:               *retryAfter,
+	})
 
 	url, _ := url.Parse(*proxyTarget)
 
@@ -108,30 +124,33 @@ func bufferRequest(req *http.Request) []byte {
 }
 
 func sendToMirrors(req *http.Request, body []byte) {
-	targets.ForEach(func(target string) {
-		go mirrorTo(target, req, body)
+	targets.ForEach(func(target string, breaker *gobreaker.CircuitBreaker) {
+		go mirrorTo(target, req, body, breaker)
 	})
 }
 
-func mirrorTo(targetURL string, req *http.Request, body []byte) {
-	url := fmt.Sprintf("%s%s", targetURL, req.RequestURI)
+func mirrorTo(targetURL string, req *http.Request, body []byte, breaker *gobreaker.CircuitBreaker) {
+	breaker.Execute(func() (interface{}, error) {
+		url := fmt.Sprintf("%s%s", targetURL, req.RequestURI)
 
-	newRequest, _ := http.NewRequest(req.Method, url, bytes.NewReader(body))
-	newRequest.Header = req.Header
+		newRequest, _ := http.NewRequest(req.Method, url, bytes.NewReader(body))
+		newRequest.Header = req.Header
 
-	response, err := netClient.Do(newRequest)
-	if err != nil {
-		log.Printf("Error reading response: %v", err)
-		return
-	}
-	defer response.Body.Close()
-	// Drain the body, but discard it, to make sure connection can be reused
-	io.Copy(ioutil.Discard, response.Body)
+		response, err := netClient.Do(newRequest)
+		if err != nil {
+			log.Printf("Error reading response: %v", err)
+			return nil, err
+		}
+		defer response.Body.Close()
+		// Drain the body, but discard it, to make sure connection can be reused
+		io.Copy(ioutil.Discard, response.Body)
+		return nil, nil
+	})
 }
 
 func mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodGet {
-		targets.ForEach(func(target string) {
+		targets.ForEach(func(target string, breaker *gobreaker.CircuitBreaker) {
 			fmt.Fprintln(res, target)
 		})
 		return
@@ -147,10 +166,8 @@ func mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == http.MethodPut {
-		log.Printf("Adding '%s' to targets list.", targetURLs)
 		targets.Add(targetURLs)
 	} else if req.Method == http.MethodDelete {
-		log.Printf("Removing '%s' from targets list.", targetURLs)
 		targets.Delete(targetURLs)
 	}
 }
