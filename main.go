@@ -91,6 +91,11 @@ func main() {
 	mirrorMux.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
 		body := bufferRequest(req)
 
+		// Update the headers to allow for SSL redirection
+		req.URL.Host = url.Host
+		req.URL.Scheme = url.Scheme
+		req.Host = url.Host
+
 		proxyTo.ServeHTTP(res, req)
 		go sendToMirrors(req, body)
 	})
