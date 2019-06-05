@@ -42,6 +42,6 @@ docker_build:
     - docker:dind
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build -t $IMAGE_FAMILY:${CI_COMMIT_TAG:-dirty} .
-    - echo docker push $IMAGE_FAMILY:${CI_COMMIT_TAG:-dirty}
-    - docker push $IMAGE_FAMILY:${CI_COMMIT_TAG:-dirty}
+    - docker build -t $IMAGE_FAMILY:${CI_BUILD_REF:-dirty} .
+    - echo docker push $IMAGE_FAMILY:${CI_BUILD_REF:-dirty}
+    - docker push $IMAGE_FAMILY:${CI_BUILD_REF:-dirty}
