@@ -33,7 +33,7 @@ docker_build:
   script:
     - echo "${quay_password}" | docker login --username=${quay_user} --password-stdin ${CI_REGISTRY}
     - docker build
-      --tag ${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty
+      --tag "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
       --target app
       ${PWD}
     - docker push "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
