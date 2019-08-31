@@ -1,5 +1,9 @@
 #!/bin/sh
 
+[ -n "${TRACE+x}" ] && set -x
+
+set -e
+
 # Takes these environment variables:
 #
 # LISTEN_PORT: port to listen on (defaults to 8080)
@@ -15,6 +19,4 @@ if [ -n "${USERNAME}" ]; then
   extraParams="${extraParams} -password /password.file"
 fi
 
-cmd="/trafficmirror -listen ":${listenPort}" -main=${main} ${extraParams}"
-
-exec "${cmd}"
+/trafficmirror -listen ":${listenPort}" -main="${main}" "${extraParams}"
