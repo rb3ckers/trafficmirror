@@ -22,6 +22,7 @@ go_build:
       --entrypoint cp
       "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
       /build/trafficmirror /opt/copy/
+    - ls -lha
   artifacts:
     paths:
       - build
