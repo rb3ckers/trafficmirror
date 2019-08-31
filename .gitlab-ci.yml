@@ -1,33 +1,27 @@
 variables:
+  CI_REGISTRY: quay.io
   GL_URL: github.com/rb3ckers
   GO_PROJECT_NAMESPACE: trafficmirror
   IMAGE_FAMILY: stackstate/trafficmirror
-  CI_REGISTRY: docker.io
-
-.prep_go: &prep_go
-  before_script:
-    - echo export GO_PROJECT_PATH="$GOPATH/src/$GL_URL/$GO_PROJECT_NAMESPACE"
-    - export GO_PROJECT_PATH="$GOPATH/src/$GL_URL/$GO_PROJECT_NAMESPACE"
-    - rm -rf $GOPATH/src/$GL_URL
-    - mkdir -p $GOPATH/src/$GL_URL
-    - echo ln -s $(pwd) $GO_PROJECT_PATH
-    - ln -s $(pwd) $GO_PROJECT_PATH
-    - cd $GO_PROJECT_PATH
 
 stages:
   - build
   - docker_build
 
 go_build:
-  <<: *prep_go
   stage: build
-  image: golang:1.11
+  image: docker:stable
   script:
-    - go get github.com/golang/dep/cmd/dep
-    - dep ensure
-    - mkdir -p build
-    - env GOOS=linux GOARCH=amd64 go build -o build/trafficmirror
-    - ls -la $GO_PROJECT_PATH/
+    - docker build
+      --tag "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
+      --target builder
+      ${PWD}
+    - docker run
+      --volume ${PWD}/build:/opt/copy
+      --rm
+      --entrypoint cp
+      "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
+      /build/trafficmirror /opt/copy/
   artifacts:
     paths:
       - build
@@ -35,13 +29,11 @@ go_build:
 
 docker_build:
   stage: docker_build
-  image: docker:latest
-  dependencies:
-    - go_build
-  services:
-    - docker:dind
+  image: docker:stable
   script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - docker build -t $IMAGE_FAMILY:${CI_BUILD_REF:-dirty} .
-    - echo docker push $IMAGE_FAMILY:${CI_BUILD_REF:-dirty}
-    - docker push $IMAGE_FAMILY:${CI_BUILD_REF:-dirty}
+    - echo "${quay_password}" | docker login --username=${quay_user} --password-stdin ${CI_REGISTRY}
+    - docker build
+      --tag ${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty
+      --target app
+      ${PWD}
+    - docker push "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
