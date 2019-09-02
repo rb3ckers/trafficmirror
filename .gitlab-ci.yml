@@ -1,5 +1,5 @@
 variables:
-  CI_REGISTRY: quay.io
+  CI_REGISTRY: docker.io
   GL_URL: github.com/rb3ckers
   GO_PROJECT_NAMESPACE: trafficmirror
   IMAGE_FAMILY: stackstate/trafficmirror
@@ -32,7 +32,7 @@ docker_build:
   stage: docker_build
   image: docker:stable
   script:
-    - echo "${quay_password}" | docker login --username=${quay_user} --password-stdin ${CI_REGISTRY}
+    - echo "${docker_password}" | docker login --username=${docker_user} --password-stdin ${CI_REGISTRY}
     - docker build
       --tag "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
       --target app
