@@ -35,12 +35,8 @@ RUN apk upgrade --no-cache --available \
 # Copy artifacts from builder container
 COPY --from=builder /build/trafficmirror /trafficmirror
 
-# Create non-root user
-RUN addgroup -S -g 1000 stackstate && \
-    adduser -S -u 1000 -G stackstate -s /bin/sh stackstate
-
 # Switch to non-root user
-USER stackstate
+USER nobody
 
 EXPOSE 8080
 
