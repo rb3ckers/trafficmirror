@@ -23,7 +23,7 @@ RUN /build/trafficmirror --help
 
 FROM alpine:latest AS app
 
-ENV PERSISTENT_PACKAGES="ca-certificates tini"
+ENV PERSISTENT_PACKAGES="tini"
 
 # Copy support files
 COPY rootfs /

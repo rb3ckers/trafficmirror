@@ -1,32 +1,10 @@
 variables:
   CI_REGISTRY: docker.io
-  GL_URL: github.com/rb3ckers
-  GO_PROJECT_NAMESPACE: trafficmirror
   IMAGE_FAMILY: stackstate/trafficmirror
 
 stages:
   - build
   - docker_build
-
-go_build:
-  stage: build
-  image: docker:stable
-  script:
-    - docker build
-      --tag "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
-      --target builder
-      ${PWD}
-    - docker run
-      --volume ${PWD}/build:/opt/copy
-      --rm
-      --entrypoint cp
-      "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
-      /build/trafficmirror /opt/copy/
-    - ls -lha
-  artifacts:
-    paths:
-      - build
-    expire_in: 1 week
 
 docker_build:
   stage: docker_build
