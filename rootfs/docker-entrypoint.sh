@@ -13,10 +13,11 @@ set -e
 extraParams="${1}"
 listenPort="${LISTEN_PORT:-8080}"
 main="${MAIN:-localhost:8888}"
+passwordFile="${PASSWORD_FILE:-/tmp/password.file}"
 
 if [ -n "${USERNAME}" ]; then
-  echo "${USERNAME}:${PASSWORD}" > /password.file
-  extraParams="${extraParams} -password /password.file"
+  echo "${USERNAME}:${PASSWORD}" > "${passwordFile}"
+  extraParams="${extraParams} -password ${passwordFile}"
 fi
 
 /trafficmirror -listen ":${listenPort}" -main="${main}" "${extraParams}"
