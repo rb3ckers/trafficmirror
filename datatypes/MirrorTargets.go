@@ -22,6 +22,12 @@ type MirrorSettings struct {
 	RetryAfter               time.Duration
 }
 
+type Target struct {
+	Name         string
+	FailingSince time.Time
+	State        string
+}
+
 type targetState struct {
 	sync.Mutex
 	firstFailure             time.Time
@@ -64,6 +70,31 @@ func (mt *MirrorTargets) ForEach(f func(string, *gobreaker.CircuitBreaker)) {
 	for url, target := range mt.targets {
 		f(url, target.circuitBreaker)
 	}
+}
+
+func (mt *MirrorTargets) ListTargets() []Target {
+	targets := make([]Target, len(mt.targets)-1)
+
+	for url, target := range mt.targets {
+		var state string
+		switch target.circuitBreaker.State() {
+		case gobreaker.StateOpen:
+			state = "failing"
+		case gobreaker.StateHalfOpen:
+			state = "retrying"
+		case gobreaker.StateClosed:
+			state = "alive"
+		default:
+			state = "unknown"
+		}
+
+		targets = append(targets, Target{
+			Name:         url,
+			FailingSince: target.firstFailure,
+			State:        state,
+		})
+	}
+	return targets
 }
 
 func (ts *targetState) onBreakerChange(name string, from gobreaker.State, to gobreaker.State) {
