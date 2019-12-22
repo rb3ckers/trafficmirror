@@ -1,8 +1,0 @@
-
-[[constraint]]
-  name = "github.com/sony/gobreaker"
-  version = "0.4.0"
-
-[prune]
-  go-tests = true
-  unused-packages = true
