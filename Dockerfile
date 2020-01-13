@@ -2,17 +2,15 @@
 # Builder #
 ###########
 
-FROM golang:1.11-alpine AS builder
+FROM golang:1.12-alpine AS builder
 
 RUN apk add --no-cache git
 
-COPY . $GOPATH/src/github.com/rb3ckers/trafficmirror
+COPY . /build
 
-WORKDIR $GOPATH/src/github.com/rb3ckers/trafficmirror
+WORKDIR /build
 
 RUN set -ex \
-    && go get -u -v github.com/golang/dep/cmd/dep \
-    && dep ensure -v \
     && GOOS=linux GOARCH=amd64 go build -o /build/trafficmirror
 
 RUN /build/trafficmirror --help

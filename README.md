@@ -58,3 +58,11 @@ The list command should become:
 
 ## Error behavior
 While a target is available and responding to requests it will keep on receiving mirrored data. However when it starts failing, either returning errors or maybe it is down, the target will temporarily not receive any traffic anymore. After a minute (see the `retry-after` option) it will be retried with a single request, if this succeeds it will start receiving traffic again. If a target is persistently failing for 30 minutes (see `fail-after` option) it will be automatically removed from the set of targets and will need to be added manually again if the situation has been resolved.
+
+
+# Developing
+This repository uses Pre-commit to run some basic go linting and checks. Please install it when developing.
+```
+brew install pre-commit # install pre-commit if you haven't already
+pre-commit install # install the hooks in your local clone
+```

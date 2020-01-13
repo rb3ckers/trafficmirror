@@ -1,0 +1,15 @@
+- repo: git://github.com/dnephin/pre-commit-golang
+  rev: master
+  hooks:
+    - id: go-fmt
+    - id: go-vet
+    - id: go-imports
+    - id: validate-toml
+- repo: local
+  hooks:
+    - id: go-mod-tidy
+      name: 'go mod tidy'
+      entry: custom-hooks/go-mod-tidy.sh
+      files: '(\.go)|(\.mod)|(\.sum)$'
+      language: 'script'
+      description: "Runs `gofmt`, requires golang"
