@@ -155,9 +155,13 @@ func mirrorTo(targetURL string, req *http.Request, body []byte, breaker *gobreak
 
 func mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodGet {
-		targets.ForEach(func(target string, breaker *gobreaker.CircuitBreaker) {
-			fmt.Fprintln(res, target)
-		})
+		for _, target := range targets.ListTargets() {
+			if target.State == "alive" {
+				fmt.Fprintf(res, "%s: %s\n", target.Name, target.State)
+			} else {
+				fmt.Fprintf(res, "%s: %s (since: %s)\n", target.Name, target.State, target.FailingSince.UTC().Format(time.RFC3339))
+			}
+		}
 		return
 	}
 
