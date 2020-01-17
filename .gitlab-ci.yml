@@ -35,4 +35,4 @@ tag_build:
     DOCKER_PASSWORD: ${docker_password}
     DOCKER_REGISTRY: docker.io
     DOCKER_USERNAME: ${docker_user}
-    GITLAB_TOKEN: ${remco_github_api_token}
+    GITHUB_TOKEN: ${remco_github_api_token}
