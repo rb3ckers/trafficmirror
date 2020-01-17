@@ -1,6 +1,5 @@
 stages:
 - build
-- docker_build
 - tag
 
 docker_build:
@@ -18,7 +17,7 @@ docker_build:
     --target app
     ${PWD}
   - docker push "${CI_REGISTRY}/${IMAGE_FAMILY}:${CI_BUILD_REF:-dirty}"
-  stage: docker_build
+  stage: build
   variables:
     CI_REGISTRY: docker.io
     IMAGE_FAMILY: stackstate/trafficmirror-test
