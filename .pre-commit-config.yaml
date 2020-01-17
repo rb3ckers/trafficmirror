@@ -1,3 +1,4 @@
+repos:
 - repo: git://github.com/dnephin/pre-commit-golang
   rev: master
   hooks:
@@ -13,3 +14,7 @@
       files: '(\.go)|(\.mod)|(\.sum)$'
       language: 'script'
       description: "Runs `gofmt`, requires golang"
+- repo: git@github.com:kadrach/pre-commit-gitlabci-lint.git
+  rev: ab984c60414b012e294a65166691473047ccce49
+  hooks:
+  - id: gitlabci-lint

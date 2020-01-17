@@ -1,5 +1,6 @@
 .go
 .idea
 /trafficmirror
-vendor
+dist
 trafficmirror
+vendor
