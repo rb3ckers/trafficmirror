@@ -72,9 +72,9 @@ func (mt *MirrorTargets) ForEach(f func(string, *gobreaker.CircuitBreaker)) {
 	}
 }
 
-func (mt *MirrorTargets) ListTargets() []Target {
-	targets := make([]Target, len(mt.targets)-1)
-
+func (mt *MirrorTargets) ListTargets() []*Target {
+	targets := make([]*Target, len(mt.targets))
+	i := 0
 	for url, target := range mt.targets {
 		var state string
 		switch target.circuitBreaker.State() {
@@ -88,11 +88,12 @@ func (mt *MirrorTargets) ListTargets() []Target {
 			state = "unknown"
 		}
 
-		targets = append(targets, Target{
+		targets[i] = &Target{
 			Name:         url,
 			FailingSince: target.firstFailure,
 			State:        state,
-		})
+		}
+		i = i + 1
 	}
 	return targets
 }
