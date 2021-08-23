@@ -12,6 +12,10 @@ builds:
 - env:
   - CGO_ENABLED=0
   - GO111MODULE=on
+  ldflags:
+    - -s -w -X github.com/rb3ckers/trafficmirror.Version={{.Version}}
+    - -X github.com/rb3ckers/trafficmirror.Commit={{.Commit}}
+    - -X github.com/rb3ckers/trafficmirror.Date={{.Date}}
 checksum:
   name_template: checksums.txt
 snapshot:
@@ -29,6 +33,11 @@ dockers:
   - go.sum
   - main.go
   - rootfs/
+  build_flag_templates:
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
   image_templates:
   - docker.io/stackstate/trafficmirror:latest
   - docker.io/stackstate/trafficmirror:{{ .Tag }}

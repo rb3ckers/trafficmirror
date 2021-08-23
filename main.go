@@ -19,6 +19,12 @@ import (
 	"github.com/rb3ckers/trafficmirror/datatypes"
 )
 
+var (
+	Version string
+	Commit  string
+	Date    string
+)
+
 var netClient = &http.Client{
 	Timeout: time.Second * 20,
 }
@@ -49,6 +55,7 @@ func main() {
 		return
 	}
 
+	fmt.Printf("Traffic Mirror %s (Built on: %ss, Commit: %s)\n", Version, Date, Commit)
 	fmt.Printf("Mirroring traffic from %s to %s\n", *listenAddress, *proxyTarget)
 	var targetsText string
 	if *targetsAddress != "" {
