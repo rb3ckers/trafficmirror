@@ -48,6 +48,7 @@ func (mt *MirrorTargets) Add(targets []string) {
 	log.Printf("Adding %s to targets list.", targets)
 	mt.Lock()
 	defer mt.Unlock()
+
 	for _, url := range targets {
 		mt.targets[url] = newTargetState(url, mt.persistentFailureTimeout, mt.retryAfter, func(target string) {
 			mt.Delete([]string{target})
@@ -59,6 +60,7 @@ func (mt *MirrorTargets) Delete(targets []string) {
 	log.Printf("Removing %s from targets list.", targets)
 	mt.Lock()
 	defer mt.Unlock()
+
 	for _, url := range targets {
 		delete(mt.targets, url)
 	}
@@ -67,6 +69,7 @@ func (mt *MirrorTargets) Delete(targets []string) {
 func (mt *MirrorTargets) ForEach(f func(string, *gobreaker.CircuitBreaker)) {
 	mt.RLock()
 	defer mt.RUnlock()
+
 	for url, target := range mt.targets {
 		f(url, target.circuitBreaker)
 	}
@@ -75,8 +78,10 @@ func (mt *MirrorTargets) ForEach(f func(string, *gobreaker.CircuitBreaker)) {
 func (mt *MirrorTargets) ListTargets() []*Target {
 	targets := make([]*Target, len(mt.targets))
 	i := 0
+
 	for url, target := range mt.targets {
 		var state string
+
 		switch target.circuitBreaker.State() {
 		case gobreaker.StateOpen:
 			state = "failing"
@@ -93,30 +98,38 @@ func (mt *MirrorTargets) ListTargets() []*Target {
 			FailingSince: target.firstFailure,
 			State:        state,
 		}
-		i = i + 1
+
+		i++
 	}
+
 	return targets
 }
 
 func (ts *targetState) onBreakerChange(name string, from gobreaker.State, to gobreaker.State) {
-	if from == gobreaker.StateClosed && to == gobreaker.StateOpen {
-		ts.Lock()
-		defer ts.Unlock()
-		ts.firstFailure = time.Now()
-		log.Printf("Temporary not mirroring to target %s.", name)
-	} else if to == gobreaker.StateOpen {
-		ts.Lock()
-		defer ts.Unlock()
-		if !ts.firstFailure.IsZero() && time.Now().Sub(ts.firstFailure) > ts.persistentFailureTimeout {
-			log.Printf("%s is persistently failing.", name)
-			ts.onTargetFailed(name)
+	switch to {
+	case gobreaker.StateOpen:
+		if from == gobreaker.StateClosed {
+			ts.Lock()
+			defer ts.Unlock()
+			ts.firstFailure = time.Now()
+
+			log.Printf("Temporary not mirroring to target %s.", name)
+		} else {
+			ts.Lock()
+			defer ts.Unlock()
+			if !ts.firstFailure.IsZero() && time.Since(ts.firstFailure) > ts.persistentFailureTimeout {
+				log.Printf("%s is persistently failing.", name)
+				ts.onTargetFailed(name)
+			}
 		}
-	} else if to == gobreaker.StateHalfOpen {
+	case gobreaker.StateHalfOpen:
 		log.Printf("Retrying target %s.", name)
-	} else if to == gobreaker.StateClosed {
+
+	case gobreaker.StateClosed:
 		ts.Lock()
 		defer ts.Unlock()
 		ts.firstFailure = time.Time{}
+
 		log.Printf("Resuming mirroring to target %s.", name)
 	}
 }
@@ -135,5 +148,6 @@ func newTargetState(name string, persistentFailureTimeout time.Duration, retryAf
 		OnStateChange: targetState.onBreakerChange,
 	}
 	targetState.circuitBreaker = gobreaker.NewCircuitBreaker(settings)
+
 	return targetState
 }
