@@ -3,7 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/hierynomus/taipan"
 	home "github.com/mitchellh/go-homedir"
@@ -51,7 +54,11 @@ Additional targets are configured via PUT/DELETE on the '/targets?url=<endpoint>
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			PrintUsage(cfg)
-			return proxy.Start(cmd.Context(), cfg)
+			if err := RunProxy(cfg); err != nil {
+				return err
+			}
+
+			return nil
 		},
 	}
 
@@ -64,8 +71,37 @@ Additional targets are configured via PUT/DELETE on the '/targets?url=<endpoint>
 	cmd.Flags().String("password", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by ':'.")
 	cmd.Flags().Int("fail-after", 30, "Remove a target when it has been failing for this many minutes.") //nolint:gomnd
 	cmd.Flags().Int("retry-after", 1, "After 5 successive failures a target is temporarily disabled, it will be retried after this many minutes.")
+	cmd.Flags().StringSlice("mirror", []string{}, "Mirror traffic to additional targets")
 
 	return cmd
+}
+
+func RunProxy(cfg *config.Config) error {
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	p := proxy.NewProxy(cfg)
+
+	go func() {
+		sig := <-sigs
+		log.Printf("Received signal '%s', exiting\n", sig)
+
+		if err := p.Stop(); err != nil {
+			panic(err)
+		}
+
+		done <- true
+	}()
+
+	if err := p.Start(context.Background()); err != nil {
+		return err
+	}
+
+	<-done
+
+	return nil
 }
 
 func Execute(ctx context.Context) {

@@ -4,93 +4,107 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/rb3ckers/trafficmirror/datatypes"
 	"github.com/rb3ckers/trafficmirror/internal/config"
-	"github.com/sony/gobreaker"
+	"github.com/rb3ckers/trafficmirror/internal/mirror"
 )
 
-var netClient = &http.Client{
-	Timeout: time.Second * 20,
+type Proxy struct {
+	cfg        *config.Config
+	reflector  *mirror.Reflector
+	waitGroup  *sync.WaitGroup
+	httpServer *http.Server
 }
 
-var targets *datatypes.MirrorTargets
+func NewProxy(cfg *config.Config) *Proxy {
+	p := &Proxy{
+		cfg:       cfg,
+		reflector: mirror.NewReflector(cfg),
+	}
 
-func Start(ctx context.Context, cfg *config.Config) error {
-	targets = datatypes.NewMirrorTargets(datatypes.MirrorSettings{
-		PersistentFailureTimeout: time.Duration(cfg.PersistentFailureTimeout) * time.Minute,
-		RetryAfter:               time.Duration(cfg.RetryAfter) * time.Minute,
-	})
+	p.reflector.AddMirrors(cfg.Mirrors)
 
-	url, _ := url.Parse(cfg.MainProxyTarget)
+	go p.reflector.Reflect()
 
+	return p
+}
+
+func (p *Proxy) Start(ctx context.Context) error {
+	p.waitGroup = &sync.WaitGroup{}
+	p.waitGroup.Add(1)
+
+	url, _ := url.Parse(p.cfg.MainProxyTarget)
 	mirrorMux := http.NewServeMux()
+	p.httpServer = &http.Server{Addr: p.cfg.ListenAddress, Handler: mirrorMux}
 
-	var targetsMux *http.ServeMux
+	targetsMux := mirrorMux
+	targetsServer := p.httpServer
 
-	if cfg.TargetsListenAddress != "" {
+	if p.cfg.TargetsListenAddress != "" {
 		targetsMux = http.NewServeMux()
-	} else {
-		targetsMux = mirrorMux
+		targetsServer = &http.Server{Addr: p.cfg.TargetsListenAddress, Handler: targetsMux}
+
+		p.waitGroup.Add(1)
 	}
 
-	proxyTo := httputil.NewSingleHostReverseProxy(url)
-
-	if cfg.PasswordFile != "" {
-		username, password, err := parseUsernamePassword(cfg.PasswordFile)
-		if err != nil {
-			return err
-		}
-
-		targetsMux.HandleFunc("/"+cfg.TargetsEndpoint, BasicAuth(mirrorsHandler, username, password, "Please provide username and password for changing mirror targets"))
-	} else {
-		targetsMux.HandleFunc("/"+cfg.TargetsEndpoint, mirrorsHandler)
+	if err := p.setupTargetsMux(targetsMux); err != nil {
+		return err
 	}
 
-	mirrorMux.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
-		body := bufferRequest(req)
-
-		// Update the headers to allow for SSL redirection
-		req.URL.Host = url.Host
-		req.URL.Scheme = url.Scheme
-		req.Host = url.Host
-
-		proxyTo.ServeHTTP(res, req)
-		go sendToMirrors(req, body)
-	})
+	mirrorMux.HandleFunc("/", ReverseProxyHandler(p.reflector, url))
 
 	// start configuration server if needed
-	if cfg.TargetsListenAddress != "" {
-		go func() {
-			if err := http.ListenAndServe(cfg.TargetsListenAddress, targetsMux); err != nil {
-				panic(err)
+	if p.cfg.TargetsListenAddress != "" {
+		p.httpServer.RegisterOnShutdown(func() {
+			if err := targetsServer.Shutdown(context.Background()); err != nil { //nolint:staticcheck
+				// Already in shutdown mode, ignore error
 			}
-		}()
+		})
+
+		startHTTPServer(p.waitGroup, targetsServer)
 	}
 
 	// start mirror server
-	if err := http.ListenAndServe(cfg.ListenAddress, mirrorMux); err != nil {
-		panic(err)
-	}
+	startHTTPServer(p.waitGroup, p.httpServer)
 
 	return nil
 }
 
-func mirrorsHandler(res http.ResponseWriter, req *http.Request) {
+func startHTTPServer(wg *sync.WaitGroup, srv *http.Server) {
+	go func() {
+		defer wg.Done()
+		// always returns error. ErrServerClosed on graceful close
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			// unexpected error. port in use?
+			log.Printf("Unexpected error running server: %v", err)
+		}
+	}()
+}
+
+func (p *Proxy) Stop() error {
+	if err := p.httpServer.Shutdown(context.TODO()); err != nil {
+		panic(err) // failure/timeout shutting down the server gracefully
+	}
+
+	p.reflector.Close()
+
+	return nil
+}
+
+func (p *Proxy) mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodGet {
-		for _, target := range targets.ListTargets() {
-			if target.State == "alive" {
-				fmt.Fprintf(res, "%s: %s\n", target.Name, target.State)
+		for _, target := range p.reflector.ListMirrors() {
+			if target.State == mirror.StateAlive {
+				fmt.Fprintf(res, "%s: %s\n", target.URL, target.State)
 			} else {
-				fmt.Fprintf(res, "%s: %s (since: %s)\n", target.Name, target.State, target.FailingSince.UTC().Format(time.RFC3339))
+				fmt.Fprintf(res, "%s: %s (since: %s)\n", target.URL, target.State, target.FailingSince.UTC().Format(time.RFC3339))
 			}
 		}
 
@@ -107,34 +121,10 @@ func mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == http.MethodPut {
-		targets.Add(targetURLs)
+		p.reflector.AddMirrors(targetURLs)
 	} else if req.Method == http.MethodDelete {
-		targets.Delete(targetURLs)
+		p.reflector.RemoveMirrors(targetURLs)
 	}
-}
-
-func sendToMirrors(req *http.Request, body []byte) {
-	targets.ForEach(func(target string, breaker *gobreaker.CircuitBreaker) {
-		go mirrorTo(target, req, body, breaker)
-	})
-}
-
-func mirrorTo(targetURL string, req *http.Request, body []byte, breaker *gobreaker.CircuitBreaker) {
-	breaker.Execute(func() (interface{}, error) { //nolint:errcheck
-		url := fmt.Sprintf("%s%s", targetURL, req.RequestURI)
-
-		newRequest, _ := http.NewRequest(req.Method, url, bytes.NewReader(body)) //nolint:noctx
-		newRequest.Header = req.Header
-
-		response, err := netClient.Do(newRequest)
-		if err != nil {
-			log.Printf("Error reading response: %v", err)
-			return nil, err
-		}
-		defer response.Body.Close()
-		// Drain the body, but discard it, to make sure connection can be reused
-		return io.Copy(ioutil.Discard, response.Body)
-	})
 }
 
 func parseUsernamePassword(passwordFile string) (string, string, error) {
@@ -162,4 +152,19 @@ func bufferRequest(req *http.Request) []byte {
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 
 	return body
+}
+
+func (p *Proxy) setupTargetsMux(targetsMux *http.ServeMux) error {
+	if p.cfg.PasswordFile != "" {
+		username, password, err := parseUsernamePassword(p.cfg.PasswordFile)
+		if err != nil {
+			return err
+		}
+
+		targetsMux.HandleFunc("/"+p.cfg.TargetsEndpoint, BasicAuth(p.mirrorsHandler, username, password, "Please provide username and password for changing mirror targets"))
+	} else {
+		targetsMux.HandleFunc("/"+p.cfg.TargetsEndpoint, p.mirrorsHandler)
+	}
+
+	return nil
 }

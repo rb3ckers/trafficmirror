@@ -12,7 +12,7 @@ type Config struct {
 	PasswordFile             string   `yaml:"password"`
 	PersistentFailureTimeout int      `yaml:"fail-after" default:"30"`
 	RetryAfter               int      `yaml:"retry-after" default:"1"`
-	Mirrors                  []string `yaml:"mirrors"`
+	Mirrors                  []string `yaml:"mirror"`
 }
 
 func (s *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -25,4 +25,11 @@ func (s *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	return nil
+}
+
+func Default() *Config {
+	c := &Config{}
+	defaults.SetDefaults(c)
+
+	return c
 }
