@@ -96,7 +96,11 @@ func (m *Mirror) Reflect(req *Request) {
 	m.breaker.Execute(func() (interface{}, error) { //nolint:errcheck
 		url := fmt.Sprintf("%s%s", m.targetURL, req.originalRequest.RequestURI)
 
-		newRequest, _ := http.NewRequest(req.originalRequest.Method, url, bytes.NewReader(req.body)) //nolint:noctx
+		newRequest, err := http.NewRequest(req.originalRequest.Method, url, bytes.NewReader(req.body)) //nolint:noctx
+		if err != nil {
+			return nil, err
+		}
+
 		newRequest.Header = req.originalRequest.Header
 
 		response, err := m.netClient.Do(newRequest)
