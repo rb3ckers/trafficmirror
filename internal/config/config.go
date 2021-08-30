@@ -9,7 +9,9 @@ type Config struct {
 	ListenAddress            string   `yaml:"listen" default:":8080"`
 	TargetsEndpoint          string   `yaml:"targets" default:"targets"`
 	TargetsListenAddress     string   `yaml:"targets-address"`
-	PasswordFile             string   `yaml:"password"`
+	Username                 string   `yaml:"username"`
+	Password                 string   `yaml:"password"`
+	PasswordFile             string   `yaml:"passwordFile"`
 	PersistentFailureTimeout int      `yaml:"fail-after" default:"30"`
 	RetryAfter               int      `yaml:"retry-after" default:"1"`
 	Mirrors                  []string `yaml:"mirror"`

@@ -155,12 +155,22 @@ func bufferRequest(req *http.Request) []byte {
 }
 
 func (p *Proxy) setupTargetsMux(targetsMux *http.ServeMux) error {
+	var username, password string
+
 	if p.cfg.PasswordFile != "" {
-		username, password, err := parseUsernamePassword(p.cfg.PasswordFile)
+		u, pwd, err := parseUsernamePassword(p.cfg.PasswordFile)
 		if err != nil {
 			return err
 		}
 
+		username = u
+		password = pwd
+	} else if p.cfg.Username != "" && p.cfg.Password != "" {
+		username = p.cfg.Username
+		password = p.cfg.Password
+	}
+
+	if username != "" && password != "" {
 		targetsMux.HandleFunc("/"+p.cfg.TargetsEndpoint, BasicAuth(p.mirrorsHandler, username, password, "Please provide username and password for changing mirror targets"))
 	} else {
 		targetsMux.HandleFunc("/"+p.cfg.TargetsEndpoint, p.mirrorsHandler)

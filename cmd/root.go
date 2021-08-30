@@ -68,7 +68,9 @@ Additional targets are configured via PUT/DELETE on the '/targets?url=<endpoint>
 	cmd.Flags().StringP("main", "m", "http://localhost:8888", "Main proxy target, its responses will be returned to the client")
 	cmd.Flags().String("targets", "targets", "Path on which additional targets to mirror to can be added/deleted/listed via PUT, DELETE and GET")
 	cmd.Flags().String("targets-address", "", "Address on which the targets endpoint is made available. Leave empty to expose it on the address that is being mirrored")
-	cmd.Flags().String("password", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by ':'.")
+	cmd.Flags().String("username", "", "Username to protect the configuration 'targets' endpoint with.")
+	cmd.Flags().String("password", "", "Password to protect the configuration 'targets' endpoint with.")
+	cmd.Flags().String("passwordFile", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by ':'.")
 	cmd.Flags().Int("fail-after", 30, "Remove a target when it has been failing for this many minutes.") //nolint:gomnd
 	cmd.Flags().Int("retry-after", 1, "After 5 successive failures a target is temporarily disabled, it will be retried after this many minutes.")
 	cmd.Flags().StringSlice("mirror", []string{}, "Mirror traffic to additional targets")
