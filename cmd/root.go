@@ -73,7 +73,7 @@ Additional targets are configured via PUT/DELETE on the '/targets?url=<endpoint>
 	cmd.Flags().String("passwordFile", "", "Provide a file that contains username/password to protect the configuration 'targets' endpoint. Contains 1 username/password combination separated by ':'.")
 	cmd.Flags().Int("fail-after", 30, "Remove a target when it has been failing for this many minutes.") //nolint:gomnd
 	cmd.Flags().Int("retry-after", 1, "After 5 successive failures a target is temporarily disabled, it will be retried after this many minutes.")
-	cmd.Flags().StringSlice("mirror", []string{}, "Mirror traffic to additional targets")
+	cmd.Flags().StringSlice("mirror", []string{}, "Start with mirroring traffic to provided targets")
 
 	return cmd
 }
