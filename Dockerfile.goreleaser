@@ -1,0 +1,6 @@
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY trafficmirror .
+USER nonroot:nonroot
+
+ENTRYPOINT ["/trafficmirror"]

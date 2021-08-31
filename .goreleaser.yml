@@ -12,6 +12,10 @@ builds:
 - env:
   - CGO_ENABLED=0
   - GO111MODULE=on
+  ldflags:
+    - -s -w -X github.com/rb3ckers/trafficmirror.Version={{.Version}}
+    - -X github.com/rb3ckers/trafficmirror.Commit={{.Commit}}
+    - -X github.com/rb3ckers/trafficmirror.Date={{.Date}}
 checksum:
   name_template: checksums.txt
 snapshot:
@@ -23,14 +27,17 @@ changelog:
     - "^docs:"
     - "^test:"
 dockers:
-- extra_files:
-  - datatypes/
-  - go.mod
-  - go.sum
-  - main.go
-  - rootfs/
-  image_templates:
-  - docker.io/stackstate/trafficmirror:latest
-  - docker.io/stackstate/trafficmirror:{{ .Tag }}
-  - docker.io/stackstate/trafficmirror:v{{ .Major }}
-  - docker.io/stackstate/trafficmirror:v{{ .Major }}.{{ .Minor }}
+  -
+    goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile.goreleaser
+    build_flag_templates:
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    image_templates:
+    - quay.io/stackstate/trafficmirror:latest
+    - quay.io/stackstate/trafficmirror:{{ .Tag }}
+    - quay.io/stackstate/trafficmirror:v{{ .Major }}
+    - quay.io/stackstate/trafficmirror:v{{ .Major }}.{{ .Minor }}
