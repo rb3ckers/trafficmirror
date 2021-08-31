@@ -23,7 +23,9 @@ docker_build:
     IMAGE_FAMILY: stackstate/trafficmirror-test
 
 tag_build:
-  image: docker.io/goreleaser/goreleaser:v0.124.1
+  image:
+    entrypoint: [""]
+    name: docker.io/goreleaser/goreleaser:v0.124.1
   only:
     refs:
     - tags
