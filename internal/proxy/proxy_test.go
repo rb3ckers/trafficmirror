@@ -16,6 +16,7 @@ func TestReflector(t *testing.T) {
 	reqs1, reqs2 := 0, 0
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
+
 	serv1 := gin.New()
 	serv2 := gin.New()
 
@@ -31,15 +32,16 @@ func TestReflector(t *testing.T) {
 		c.String(200, "Hello World")
 	})
 
-	go gin.Default().Run(":8888")
-	go serv1.Run(":8081")
-	go serv2.Run(":8082")
+	go gin.Default().Run(":8888") //nolint:errcheck
+	go serv1.Run(":8081")         //nolint:errcheck
+	go serv2.Run(":8082")         //nolint:errcheck
 
+	ctx := context.Background()
 	p := NewProxy(config.Default())
-	assert.NoError(t, p.Start(context.Background()))
-	p.reflector.AddMirrors([]string{"http://localhost:8081", "http://localhost:8082"})
+	assert.NoError(t, p.Start(ctx))
+	p.reflector.AddMirrors([]string{"http://localhost:8081", "http://localhost:8082"}, false)
 
-	req, err := http.NewRequest("GET", "http://localhost:8080/", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://localhost:8080/", nil)
 	assert.NoError(t, err)
 
 	c := &http.Client{

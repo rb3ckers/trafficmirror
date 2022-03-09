@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rb3ckers/trafficmirror/internal/config"
 	"github.com/sony/gobreaker"
 )
 
@@ -38,7 +39,10 @@ type MirrorStatus struct {
 	URL          string
 }
 
-func NewMirror(targetURL string, retryAfter time.Duration, persistentFailureTimeout time.Duration, failureCh chan<- string) *Mirror {
+func NewMirror(targetURL string, config *config.Config, failureCh chan<- string, persistent bool) *Mirror {
+	retryAfter := time.Duration(config.RetryAfter) * time.Minute
+	persistentFailureTimeout := time.Duration(config.PersistentFailureTimeout) * time.Minute
+
 	mirror := &Mirror{
 		netClient: &http.Client{
 			Timeout: time.Second * 20,
@@ -49,11 +53,16 @@ func NewMirror(targetURL string, retryAfter time.Duration, persistentFailureTime
 	}
 
 	settings := gobreaker.Settings{
-		Name:          targetURL,
-		MaxRequests:   1,
-		Interval:      0,          // Never clear counts
-		Timeout:       retryAfter, // When open retry after 60 seconds
-		OnStateChange: mirror.onBreakerChange,
+		Name:        targetURL,
+		MaxRequests: 1,
+		Interval:    0,          // Never clear counts
+		Timeout:     retryAfter, // When open retry after 60 seconds
+	}
+
+	if persistent {
+		settings.OnStateChange = PersistentStatusHandler(mirror)
+	} else {
+		settings.OnStateChange = RemovingStatusHandler(mirror)
 	}
 
 	breaker := gobreaker.NewCircuitBreaker(settings)
@@ -61,35 +70,6 @@ func NewMirror(targetURL string, retryAfter time.Duration, persistentFailureTime
 	mirror.breaker = breaker
 
 	return mirror
-}
-
-func (m *Mirror) onBreakerChange(name string, from gobreaker.State, to gobreaker.State) {
-	switch to {
-	case gobreaker.StateOpen:
-		if from == gobreaker.StateClosed {
-			m.Lock()
-			defer m.Unlock()
-			m.firstFailureTime = time.Now()
-
-			log.Printf("Temporary not mirroring to target %s.", name)
-		} else {
-			m.Lock()
-			defer m.Unlock()
-			if !m.firstFailureTime.IsZero() && time.Since(m.firstFailureTime) > m.persistentFailureTimeout {
-				log.Printf("%s is persistently failing.", name)
-				m.failureCh <- m.targetURL
-			}
-		}
-	case gobreaker.StateHalfOpen:
-		log.Printf("Retrying target %s.", name)
-
-	case gobreaker.StateClosed:
-		m.Lock()
-		defer m.Unlock()
-		m.firstFailureTime = time.Time{}
-
-		log.Printf("Resuming mirroring to target %s.", name)
-	}
 }
 
 func (m *Mirror) Reflect(req *Request) {

@@ -29,7 +29,7 @@ func NewProxy(cfg *config.Config) *Proxy {
 		reflector: mirror.NewReflector(cfg),
 	}
 
-	p.reflector.AddMirrors(cfg.Mirrors)
+	p.reflector.AddMirrors(cfg.Mirrors, true)
 
 	go p.reflector.Reflect()
 
@@ -111,7 +111,10 @@ func (p *Proxy) mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	req.ParseForm()
+	if err := req.ParseForm(); err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	targetURLs, inForm := req.Form["url"]
 
@@ -120,8 +123,13 @@ func (p *Proxy) mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	persistent := req.Form.Has("persistent")
+	if persistent {
+		persistent = strings.ToLower(req.Form.Get("persistent")) == "true"
+	}
+
 	if req.Method == http.MethodPut {
-		p.reflector.AddMirrors(targetURLs)
+		p.reflector.AddMirrors(targetURLs, persistent)
 	} else if req.Method == http.MethodDelete {
 		p.reflector.RemoveMirrors(targetURLs)
 	}
