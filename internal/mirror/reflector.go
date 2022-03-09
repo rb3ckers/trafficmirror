@@ -3,7 +3,6 @@ package mirror
 import (
 	"log"
 	"sync"
-	"time"
 
 	"github.com/rb3ckers/trafficmirror/internal/config"
 )
@@ -52,13 +51,13 @@ func (r *Reflector) sendToMirrors(req *Request) {
 	}
 }
 
-func (r *Reflector) AddMirrors(urls []string) {
+func (r *Reflector) AddMirrors(urls []string, persistent bool) {
 	r.Lock()
 	defer r.Unlock()
 
 	for _, url := range urls {
 		log.Printf("Adding '%s' to mirror list.", url)
-		r.mirrors[url] = NewMirror(url, time.Duration(r.config.RetryAfter)*time.Minute, time.Duration(r.config.PersistentFailureTimeout)*time.Minute, r.MirrorFailureChan)
+		r.mirrors[url] = NewMirror(url, r.config, r.MirrorFailureChan, persistent)
 	}
 }
 
