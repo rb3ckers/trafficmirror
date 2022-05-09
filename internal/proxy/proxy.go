@@ -179,6 +179,7 @@ func (p *Proxy) setupTargetsMux(targetsMux *http.ServeMux) error {
 	}
 
 	if username != "" && password != "" {
+		log.Printf("/" + p.cfg.TargetsEndpoint + " is basic auth protected, username is '" + username + "'")
 		targetsMux.HandleFunc("/"+p.cfg.TargetsEndpoint, BasicAuth(p.mirrorsHandler, username, password, "Please provide username and password for changing mirror targets"))
 	} else {
 		targetsMux.HandleFunc("/"+p.cfg.TargetsEndpoint, p.mirrorsHandler)

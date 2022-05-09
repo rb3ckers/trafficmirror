@@ -22,7 +22,7 @@ var (
 	Date    string
 )
 
-var EnvPrefix = "TRAFFICMIRROR_"
+var EnvPrefix = "TRAFFICMIRROR"
 
 func RootCommand(cfg *config.Config) *cobra.Command {
 	var verbosity int
