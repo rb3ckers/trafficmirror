@@ -57,3 +57,25 @@ func TestReflector(t *testing.T) {
 	assert.Equal(t, 1, reqs1)
 	assert.Equal(t, 1, reqs2)
 }
+
+func TestAuth(t *testing.T) {
+	ctx := context.Background()
+	cfg := config.Default()
+	cfg.Username = "test"
+	cfg.Password = "test"
+
+	p := NewProxy(cfg)
+	assert.NoError(t, p.Start(ctx))
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://localhost:8080/targets", nil)
+	assert.NoError(t, err)
+
+	c := &http.Client{
+		Timeout: time.Second * 20,
+	}
+
+	resp, err := c.Do(req)
+	assert.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, 401, resp.StatusCode)
+}
