@@ -27,8 +27,7 @@ changelog:
     - "^docs:"
     - "^test:"
 dockers:
-  -
-    goos: linux
+  - goos: linux
     goarch: amd64
     dockerfile: Dockerfile.goreleaser
     build_flag_templates:
@@ -37,8 +36,8 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     image_templates:
-    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:{{ .Tag }}
-    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v{{ .Major }}
-    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v{{ .Major }}.{{ .Minor }}
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Tag }}"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:v{{ .Major }}"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:v{{ .Major }}.{{ .Minor }}"

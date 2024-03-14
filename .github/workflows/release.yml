@@ -4,12 +4,18 @@ on:
   push:
     tags:
       - '*'
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 permissions:
   contents: write
 
 jobs:
   goreleaser:
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-latest
     steps:
       -
