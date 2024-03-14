@@ -37,7 +37,8 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
     image_templates:
-    - quay.io/stackstate/trafficmirror:latest
-    - quay.io/stackstate/trafficmirror:{{ .Tag }}
-    - quay.io/stackstate/trafficmirror:v{{ .Major }}
-    - quay.io/stackstate/trafficmirror:v{{ .Major }}.{{ .Minor }}
+    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:{{ .Tag }}
+    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v{{ .Major }}
+    - ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v{{ .Major }}.{{ .Minor }}
