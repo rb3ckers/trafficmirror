@@ -14,6 +14,8 @@ import (
 
 	"github.com/rb3ckers/trafficmirror/internal/config"
 	"github.com/rb3ckers/trafficmirror/internal/mirror"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 type Proxy struct {
@@ -42,7 +44,9 @@ func (p *Proxy) Start(ctx context.Context) error {
 
 	url, _ := url.Parse(p.cfg.MainProxyTarget)
 	mirrorMux := http.NewServeMux()
-	p.httpServer = &http.Server{Addr: p.cfg.ListenAddress, Handler: mirrorMux}
+
+	h2s := &http2.Server{}
+	p.httpServer = &http.Server{Addr: p.cfg.ListenAddress, Handler: h2c.NewHandler(mirrorMux, h2s)}
 
 	targetsMux := mirrorMux
 	targetsServer := p.httpServer
