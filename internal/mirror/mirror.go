@@ -22,6 +22,7 @@ type Mirror struct {
 	firstFailureTime         time.Time
 	persistentFailureTimeout time.Duration
 	failureCh                chan<- string
+	sendQueue                *SendQueue
 }
 
 type MirrorState string
@@ -39,7 +40,7 @@ type MirrorStatus struct {
 	URL          string
 }
 
-func NewMirror(targetURL string, config *config.Config, failureCh chan<- string, persistent bool) *Mirror {
+func NewMirror(targetURL string, config *config.Config, failureCh chan<- string, persistent bool, sendQueue *SendQueue) *Mirror {
 	retryAfter := time.Duration(config.RetryAfter) * time.Minute
 	persistentFailureTimeout := time.Duration(config.PersistentFailureTimeout) * time.Minute
 
@@ -50,6 +51,7 @@ func NewMirror(targetURL string, config *config.Config, failureCh chan<- string,
 		persistentFailureTimeout: persistentFailureTimeout,
 		targetURL:                targetURL,
 		failureCh:                failureCh,
+		sendQueue:                sendQueue,
 	}
 
 	settings := gobreaker.Settings{
@@ -73,6 +75,18 @@ func NewMirror(targetURL string, config *config.Config, failureCh chan<- string,
 }
 
 func (m *Mirror) Reflect(req *Request) {
+	m.sendQueue.AddToQueue(req, m.targetURL)
+	// Attempt sending the next items
+	m.tryExecuteNext()
+}
+
+func (m *Mirror) tryExecuteNext() {
+	for _, r := range m.sendQueue.NextExecuteItems() {
+		go m.executeRequest(r)
+	}
+}
+
+func (m *Mirror) executeRequest(req *Request) {
 	m.breaker.Execute(func() (interface{}, error) { //nolint:errcheck
 		url := fmt.Sprintf("%s%s", m.targetURL, req.originalRequest.RequestURI)
 
@@ -92,6 +106,9 @@ func (m *Mirror) Reflect(req *Request) {
 		// Drain the body, but discard it, to make sure connection can be reused
 		return io.Copy(ioutil.Discard, response.Body)
 	})
+
+	m.sendQueue.ExecutionCompleted(req)
+	m.tryExecuteNext()
 }
 
 func (m *Mirror) GetStatus() *MirrorStatus {

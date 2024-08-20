@@ -14,6 +14,9 @@ type Reflector struct {
 	DoneCh            chan bool
 	MirrorFailureChan chan string
 	config            *config.Config
+	// This sendQueue is kept to keep exact state of what epochs were sent by the handler. This is used when we make a
+	// new mirror so we the state of that new mirror is in sync.
+	templateSendQueue *SendQueue
 }
 
 func NewReflector(config *config.Config) *Reflector {
@@ -23,6 +26,7 @@ func NewReflector(config *config.Config) *Reflector {
 		DoneCh:            make(chan bool),
 		MirrorFailureChan: make(chan string),
 		config:            config,
+		templateSendQueue: MakeSendQueue(config.MaxQueuedRequests),
 	}
 }
 
@@ -32,12 +36,29 @@ func (r *Reflector) Reflect() {
 	for {
 		select {
 		case req := <-r.IncomingCh:
+			r.updateTemplateQueue(req)
 			r.sendToMirrors(req)
 		case url := <-r.MirrorFailureChan:
 			log.Printf("Mirror '%s' has persistent failures", url)
 			r.RemoveMirrors([]string{url})
 		case <-r.DoneCh:
 			return
+		}
+	}
+}
+
+func (r *Reflector) updateTemplateQueue(req *Request) {
+	// Update the
+	r.templateSendQueue.AddToQueue(req, "template")
+	// Execute all possible items
+	for {
+		requests := r.templateSendQueue.NextExecuteItems()
+		if len(requests) > 0 {
+			for _, req := range requests {
+				r.templateSendQueue.ExecutionCompleted(req)
+			}
+		} else {
+			break
 		}
 	}
 }
@@ -57,7 +78,7 @@ func (r *Reflector) AddMirrors(urls []string, persistent bool) {
 
 	for _, url := range urls {
 		log.Printf("Adding '%s' to mirror list.", url)
-		r.mirrors[url] = NewMirror(url, r.config, r.MirrorFailureChan, persistent)
+		r.mirrors[url] = NewMirror(url, r.config, r.MirrorFailureChan, persistent, r.templateSendQueue)
 	}
 }
 
