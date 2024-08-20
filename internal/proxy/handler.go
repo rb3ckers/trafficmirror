@@ -33,6 +33,18 @@ func ReverseProxyHandler(reflector *mirror.Reflector, url *url.URL) func(res htt
 		requestEpoch := epoch.Add(1)
 		activeRequests.Set(requestEpoch, nil)
 
+		// Catch panic in serving HTTP
+		defer func() {
+			if p := recover(); p != nil {
+				// At this point the request has been served to the main target, so we remove this as active request
+				activeRequests.Remove(requestEpoch)
+
+				reflector.IncomingCh <- mirror.NewRequest(req, body, requestEpoch, activeSnapshot)
+
+				panic(p)
+			}
+		}()
+
 		// Server the request to main target
 		proxyTo.ServeHTTP(res, req)
 
