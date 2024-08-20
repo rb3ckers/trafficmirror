@@ -80,7 +80,6 @@ func (m *Mirror) Reflect(req *Request) {
 	m.tryExecuteNext()
 }
 
-// This function assumes the requestsLock is held
 func (m *Mirror) tryExecuteNext() {
 	for _, r := range m.sendQueue.NextExecuteItems() {
 		go m.executeRequest(r)
