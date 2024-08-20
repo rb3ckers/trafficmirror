@@ -68,7 +68,7 @@ func (r *Reflector) sendToMirrors(req *Request) {
 	defer r.RUnlock()
 
 	for _, mirror := range r.mirrors {
-		go mirror.Reflect(req)
+		mirror.Reflect(req)
 	}
 }
 

@@ -66,11 +66,11 @@ func (s *SendQueue) AddToQueue(req *Request, targetURL string) {
 }
 
 func (s *SendQueue) NextExecuteItems() []*Request {
-	var result []*Request
-	var newQueue []*Request
-
 	s.Lock()
 	defer s.Unlock()
+
+	var result []*Request
+	var newQueue []*Request = make([]*Request, 0, len(s.requestsQueued))
 
 	// Try to find the next request that can execute, assumes
 	for _, request := range s.requestsQueued {
