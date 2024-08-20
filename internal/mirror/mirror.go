@@ -40,7 +40,7 @@ type MirrorStatus struct {
 	URL          string
 }
 
-func NewMirror(targetURL string, config *config.Config, failureCh chan<- string, persistent bool) *Mirror {
+func NewMirror(targetURL string, config *config.Config, failureCh chan<- string, persistent bool, sendQueue *SendQueue) *Mirror {
 	retryAfter := time.Duration(config.RetryAfter) * time.Minute
 	persistentFailureTimeout := time.Duration(config.PersistentFailureTimeout) * time.Minute
 
@@ -51,7 +51,7 @@ func NewMirror(targetURL string, config *config.Config, failureCh chan<- string,
 		persistentFailureTimeout: persistentFailureTimeout,
 		targetURL:                targetURL,
 		failureCh:                failureCh,
-		sendQueue:                MakeSendQueue(config.MaxQueuedRequests),
+		sendQueue:                sendQueue,
 	}
 
 	settings := gobreaker.Settings{

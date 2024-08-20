@@ -36,7 +36,7 @@ func ReverseProxyHandler(reflector *mirror.Reflector, url *url.URL) func(res htt
 		// Server the request to main target
 		proxyTo.ServeHTTP(res, req)
 
-		// At this point the request has been served to the main target, so we remove this as active reuqest
+		// At this point the request has been served to the main target, so we remove this as active request
 		activeRequests.Remove(requestEpoch)
 
 		reflector.IncomingCh <- mirror.NewRequest(req, body, requestEpoch, activeSnapshot)
