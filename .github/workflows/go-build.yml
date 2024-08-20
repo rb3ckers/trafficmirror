@@ -16,7 +16,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.21
-          cache-dependency-path: "./go.sum"
+          cache: false
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
