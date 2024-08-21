@@ -78,7 +78,7 @@ func (r *Reflector) AddMirrors(urls []string, persistent bool) {
 
 	for _, url := range urls {
 		log.Printf("Adding '%s' to mirror list.", url)
-		r.mirrors[url] = NewMirror(url, r.config, r.MirrorFailureChan, persistent, r.templateSendQueue)
+		r.mirrors[url] = NewMirror(url, r.config, r.MirrorFailureChan, persistent, r.templateSendQueue.Clone())
 	}
 }
 
