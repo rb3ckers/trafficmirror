@@ -7,7 +7,6 @@ require (
 	github.com/hierynomus/taipan v1.2.0
 	github.com/mcuadros/go-defaults v1.2.0
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/orcaman/concurrent-map/v2 v2.0.1
 	github.com/rs/zerolog v1.32.0
 	github.com/sony/gobreaker v0.5.0
 	github.com/spf13/cobra v1.8.0

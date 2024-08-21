@@ -69,15 +69,14 @@ func (s *SendQueue) NextExecuteItems() []*Request {
 	s.Lock()
 	defer s.Unlock()
 
-	var result []*Request
-	var newQueue []*Request = make([]*Request, 0, len(s.requestsQueued))
+	var nextExecuteIndex = 0
 
 	// Try to find the next request that can execute, assumes
 	for _, request := range s.requestsQueued {
 		// Try to figure out whether the completed epoch have advanced enough for the request to be picked up.
 		// We do this by extending the completedEpochsUntil with the activeRequests information (which can be parallel)
 		// and the epochsCompleted map.
-		var completeUntilForRequest uint64 = s.completedEpochsUntil + 1
+		var completeUntilForRequest = s.completedEpochsUntil + 1
 
 		// Extend completion, if a request is 'active' we can regard it as completed
 		for ; completeUntilForRequest < request.epoch; completeUntilForRequest++ {
@@ -92,14 +91,14 @@ func (s *SendQueue) NextExecuteItems() []*Request {
 		}
 
 		if completeUntilForRequest >= request.epoch {
-			// Start executing, do not add to new queue
-			result = append(result, request)
+			nextExecuteIndex++
 		} else {
-			newQueue = append(newQueue, request)
+			break
 		}
 	}
 
-	s.requestsQueued = newQueue
+	result := s.requestsQueued[:nextExecuteIndex]
+	s.requestsQueued = s.requestsQueued[nextExecuteIndex:]
 
 	return result
 }
@@ -126,4 +125,11 @@ func (s *SendQueue) performCompleted(req *Request) {
 			break
 		}
 	}
+}
+
+func (s *SendQueue) QueueStatus() (uint64, int) {
+	s.Lock()
+	defer s.Unlock()
+
+	return s.completedEpochsUntil, len(s.requestsQueued)
 }

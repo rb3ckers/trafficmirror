@@ -62,7 +62,7 @@ func (p *Proxy) Start(ctx context.Context) error {
 		return err
 	}
 
-	mirrorMux.HandleFunc("/", ReverseProxyHandler(p.reflector, url))
+	mirrorMux.HandleFunc("/", ReverseProxyHandler(p.reflector, url, time.Duration(p.cfg.MainTargetDelayMs)*time.Millisecond))
 
 	// start configuration server if needed
 	if p.cfg.TargetsListenAddress != "" {
@@ -106,9 +106,9 @@ func (p *Proxy) mirrorsHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodGet {
 		for _, target := range p.reflector.ListMirrors() {
 			if target.State == mirror.StateAlive {
-				fmt.Fprintf(res, "%s: %s\n", target.URL, target.State)
+				fmt.Fprintf(res, "%s: %s -- queued: %d -- processed: %d\n", target.URL, target.State, target.QueuedRequests, target.Epoch)
 			} else {
-				fmt.Fprintf(res, "%s: %s (since: %s)\n", target.URL, target.State, target.FailingSince.UTC().Format(time.RFC3339))
+				fmt.Fprintf(res, "%s: %s (since: %s) -- queued: %d -- processed: %d\n", target.URL, target.State, target.FailingSince.UTC().Format(time.RFC3339), target.QueuedRequests, target.Epoch)
 			}
 		}
 

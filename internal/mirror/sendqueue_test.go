@@ -33,7 +33,7 @@ func TestSendQueueSendsInOrder(t *testing.T) {
 	q.AddToQueue(r4, "url")
 	q.AddToQueue(r2, "url")
 
-	var expectNil []*Request
+	var expectNil []*Request = []*Request{}
 	// All items in order
 
 	assert.Equal(t, []*Request{r1}, q.NextExecuteItems())
@@ -67,7 +67,7 @@ func TestSendParallelWhenPartOfActive(t *testing.T) {
 	q.AddToQueue(r1, "url")
 	q.AddToQueue(r2, "url")
 
-	var expectNil []*Request
+	var expectNil []*Request = []*Request{}
 
 	assert.Equal(t, []*Request{r1, r2}, q.NextExecuteItems())
 	assert.Equal(t, expectNil, q.NextExecuteItems())
@@ -83,7 +83,7 @@ func TestExecutedWhenActiveAndCompleted(t *testing.T) {
 	q.AddToQueue(r2, "url")
 	q.AddToQueue(r3, "url")
 
-	var expectNil []*Request
+	var expectNil []*Request = []*Request{}
 
 	assert.Equal(t, []*Request{r2}, q.NextExecuteItems())
 	assert.Equal(t, expectNil, q.NextExecuteItems())
@@ -124,9 +124,10 @@ func TestLimitQueueSize(t *testing.T) {
 	q.AddToQueue(r1, "url")
 	q.AddToQueue(r2, "url")
 
-	var expectNil []*Request
+	var expectNil []*Request = []*Request{}
 
 	assert.Equal(t, []*Request{r1}, q.NextExecuteItems())
+	assert.Equal(t, expectNil, q.requestsQueued)
 	assert.Equal(t, expectNil, q.NextExecuteItems())
 	q.ExecutionCompleted(r1)
 
