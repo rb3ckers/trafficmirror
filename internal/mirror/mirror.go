@@ -35,9 +35,11 @@ var (
 )
 
 type MirrorStatus struct {
-	State        MirrorState
-	FailingSince time.Time
-	URL          string
+	State          MirrorState
+	FailingSince   time.Time
+	URL            string
+	QueuedRequests int
+	Epoch          uint64
 }
 
 func NewMirror(targetURL string, config *config.Config, failureCh chan<- string, persistent bool, sendQueue *SendQueue) *Mirror {
@@ -125,9 +127,13 @@ func (m *Mirror) GetStatus() *MirrorStatus {
 		state = StateUnkown
 	}
 
+	epoch, queued := m.sendQueue.QueueStatus()
+
 	return &MirrorStatus{
-		State:        state,
-		FailingSince: m.firstFailureTime,
-		URL:          m.targetURL,
+		State:          state,
+		FailingSince:   m.firstFailureTime,
+		URL:            m.targetURL,
+		QueuedRequests: queued,
+		Epoch:          epoch,
 	}
 }

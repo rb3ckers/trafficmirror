@@ -16,6 +16,7 @@ type Config struct {
 	RetryAfter               int      `yaml:"retry-after" default:"1"`
 	Mirrors                  []string `yaml:"mirror"`
 	MaxQueuedRequests        int      `yaml:"max-queued-requests" default:"500"`
+	MainTargetDelayMs        int      `yaml:"main-target-delay-ms" default:"0"`
 }
 
 func (s *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
