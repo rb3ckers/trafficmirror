@@ -75,6 +75,7 @@ Additional targets are configured via PUT/DELETE on the '/targets?url=<endpoint>
 	cmd.Flags().Int("max-queued-requests", 500, "Maximum amount of requests queued per mirror.")                                                         //nolint:gomnd
 	cmd.Flags().Int("main-target-delay-ms", 0, "Delay delivery to main target, allowing slower mirrors to keep up and increase discovered parallelism.") //nolint:gomnd
 	cmd.Flags().Int("retry-after", 1, "After 5 successive failures a target is temporarily disabled, it will be retried after this many minutes.")
+	cmd.Flags().Bool("enable-pprof", false, "Enable pprof.")
 	cmd.Flags().StringSlice("mirror", []string{}, "Start with mirroring traffic to provided targets")
 
 	return cmd

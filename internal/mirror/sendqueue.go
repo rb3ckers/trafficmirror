@@ -30,6 +30,9 @@ func MakeSendQueue(maxQueueSize int) *SendQueue {
 }
 
 func (s *SendQueue) Clone() *SendQueue {
+	s.Lock()
+	defer s.Unlock()
+
 	completedCopied := make(map[uint64]interface{}, 0)
 	for c, _ := range s.epochsCompleted {
 		completedCopied[c] = nil

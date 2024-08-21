@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"net/url"
 	"strings"
 	"sync"
@@ -187,6 +188,14 @@ func (p *Proxy) setupTargetsMux(targetsMux *http.ServeMux) error {
 		targetsMux.HandleFunc("/"+p.cfg.TargetsEndpoint, BasicAuth(p.mirrorsHandler, username, password, "Please provide username and password for changing mirror targets"))
 	} else {
 		targetsMux.HandleFunc("/"+p.cfg.TargetsEndpoint, p.mirrorsHandler)
+	}
+
+	if p.cfg.EnablePProf {
+		targetsMux.HandleFunc("/debug/pprof/", pprof.Index)
+		targetsMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		targetsMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		targetsMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		targetsMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 
 	return nil

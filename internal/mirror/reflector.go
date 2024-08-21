@@ -1,10 +1,10 @@
 package mirror
 
 import (
+	"github.com/rb3ckers/trafficmirror/internal/config"
 	"log"
 	"sync"
-
-	"github.com/rb3ckers/trafficmirror/internal/config"
+	"time"
 )
 
 type Reflector struct {
@@ -78,7 +78,7 @@ func (r *Reflector) AddMirrors(urls []string, persistent bool) {
 
 	for _, url := range urls {
 		log.Printf("Adding '%s' to mirror list.", url)
-		r.mirrors[url] = NewMirror(url, r.config, r.MirrorFailureChan, persistent, r.templateSendQueue)
+		r.mirrors[url] = NewMirror(url, r.config, r.MirrorFailureChan, persistent, r.templateSendQueue.Clone())
 	}
 }
 
@@ -93,12 +93,25 @@ func (r *Reflector) RemoveMirrors(urls []string) {
 }
 
 func (r *Reflector) ListMirrors() []*MirrorStatus {
-	targets := make([]*MirrorStatus, len(r.mirrors))
+	r.Lock()
+	defer r.Unlock()
+
+	targets := make([]*MirrorStatus, len(r.mirrors)+1)
 	i := 0
 
 	for _, target := range r.mirrors {
 		targets[i] = target.GetStatus()
 		i++
+	}
+
+	epoch, requests := r.templateSendQueue.QueueStatus()
+
+	targets[i] = &MirrorStatus{
+		State:          StateAlive,
+		FailingSince:   time.Time{},
+		URL:            "internal-reflector",
+		QueuedRequests: requests,
+		Epoch:          epoch,
 	}
 
 	return targets
