@@ -2,7 +2,10 @@
 # Builder #
 ###########
 
-FROM golang:1.21-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.21-alpine AS builder
+
+ARG TARGETOS=linux
+ARG TARGETARCH
 
 RUN apk add --no-cache git
 
@@ -11,9 +14,7 @@ COPY . /build
 WORKDIR /build
 
 RUN set -ex \
-    && GOOS=linux GOARCH=amd64 go build -o /build/trafficmirror
-
-RUN /build/trafficmirror --help
+    && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH:-$(go env GOARCH)} go build -o /build/trafficmirror
 
 #######
 # App #
