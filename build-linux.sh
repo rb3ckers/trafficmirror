@@ -1,3 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-env GOOS=linux GOARCH=amd64 go build
+GOARCH=${GOARCH:-amd64}
+
+env CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build
